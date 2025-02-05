@@ -23,9 +23,12 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             ticker_df["EMA_21"] = talib.EMA(ticker_df["close"], timeperiod=21)        
             ticker_df['RSI'] =  talib.RSI(ticker_df["close"], timeperiod=14)
 
+            ticker_df['mean_close'] = ticker_df['close'].rolling(window=7, center=True).mean()
 
-            mark_optimal_trades(ticker_df)
 
+            
+            ticker_df['signal_command'] = None
+            add_optimal_signals(ticker_df)
 
             # Возвращаем данные в оригинальный датафрейм по всем ценным бумагам
             # source_df.loc[source_df['ticker'] == ticker, 'scaled_close_price'] = ticker_df['scaled_close_price']
@@ -36,39 +39,72 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[source_df['ticker'] == ticker, 'RSI'] = ticker_df['RSI']
             source_df.loc[source_df['ticker'] == ticker, 'EMA_50'] = ticker_df['EMA_50']
             source_df.loc[source_df['ticker'] == ticker, 'SMA_50'] = ticker_df['SMA_50']
-            source_df.loc[source_df['ticker'] == ticker, 'optimal_signal'] = ticker_df['optimal_signal']
+            source_df.loc[source_df['ticker'] == ticker, 'signal_command'] = ticker_df['signal_command']
             source_df.loc[source_df['ticker'] == ticker, 'EMA_9'] = ticker_df['EMA_9']
             source_df.loc[source_df['ticker'] == ticker, 'EMA_21'] = ticker_df['EMA_21']
+            source_df.loc[source_df['ticker'] == ticker, 'mean_close'] = ticker_df['mean_close']
+
 
 
     source_df['daily_return'] = source_df.groupby('ticker')['close'].pct_change()
     return source_df[1:]
 
 
+def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
 
-def mark_optimal_trades(df, future_window=10, price_change_threshold=0.10):
-    """Размечает идеальные сигналы Buy (1), Sell (-1), Hold (0), используя будущее"""
-    
-    # df = df.copy()
-    signals = np.zeros(len(df))  # По умолчанию все сигналы Hold (0)
+    df['signal_command'] = 'hold'
 
-    for i in range(len(df) - future_window):
-        current_price = df["close"].iloc[i]
-        
-        # Будущие цены в окне future_window
-        future_prices = df["close"].iloc[i+1:i+1+future_window]
+    current_position = 0  # 0=нет позиции, 1=лонг, -1=шорт
 
-        # Будущие максимумы и минимумы
-        future_max = future_prices.max()
-        future_min = future_prices.min()
 
-        # Оптимальная покупка (если цена сильно вырастет в будущем)
-        if (future_max - current_price) / current_price >= price_change_threshold:
-            signals[i] = 1  # Buy
+    # last_deal_price = df.iloc[0][price_column]
+    last_deal_price = 0.001
+    prev_command = 'hold'
+    for i in range(1, len(df)):
+        # Используем iloc, чтобы брать i-ю строку вне зависимости от значения индекса
+        price_now = df.iloc[i][price_column]
+        price_prev = df.iloc[i-1][price_column]
 
-        # Оптимальная продажа (если цена сильно упадет в будущем)
-        elif (current_price - future_min) / current_price >= price_change_threshold:
-            signals[i] = -1  # Sell
+        # Если предыдущая цена ноль — пропускаем во избежание деления на 0
+        if price_prev == 0:
+            continue
 
-    df["optimal_signal"] = signals
+        # Рассчитываем процентное изменение
+        pct_change = (price_now - last_deal_price) / last_deal_price 
+
+        # abs(price_now - last_deal_price)/last_deal_price > threshold2 and price_now > last_deal_price:
+
+        if pct_change > threshold:
+            if current_position == 0:
+                df.iloc[i, df.columns.get_loc('signal_command')] = 'buy'
+                current_position = 1
+            elif current_position == -1:
+                df.iloc[i, df.columns.get_loc('signal_command')] = 'cover/buy'
+                current_position = 1
+
+            if prev_command == 'cover/buy' and price_now > last_deal_price: 
+                df.iloc[i, df.columns.get_loc('signal_command')] = 'hold'
+                current_position == 0
+            else:
+                last_deal_price = price_now
+
+            prev_command = df.iloc[i, df.columns.get_loc('signal_command')]
+
+        elif pct_change < -threshold:
+            if current_position == 0:
+                df.iloc[i, df.columns.get_loc('signal_command')] = 'sell'
+                current_position = -1
+            elif current_position == 1:
+                df.iloc[i, df.columns.get_loc('signal_command')] = 'sell/short'
+                current_position = -1
+            if prev_command == 'sell/short' and price_now < last_deal_price: 
+                df.iloc[i, df.columns.get_loc('signal_command')] = 'hold'
+                current_position == 0
+            else:
+                last_deal_price = price_now
+                
+            prev_command = df.iloc[i, df.columns.get_loc('signal_command')]
+
+
+    signal_df = df[df['signal_command'] != 'hold']
     return df
