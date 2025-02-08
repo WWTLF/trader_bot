@@ -82,7 +82,9 @@ def get_stock_by_range(start: date, end: date) -> pd.DataFrame:
     sql = "select * from stock_data where stock_date >= '{}' and stock_date <= '{}'".format(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
     print(sql)
     df = db_connection.sql(sql).df()
+    df['stock_date'] = pd.to_datetime(df['stock_date'])
     # Сглаживаем выбросы
     get_rid_of_outliers(df)
+    df.set_index(['ticker', 'stock_date'], inplace=True)
     db_connection.close()
     return df
