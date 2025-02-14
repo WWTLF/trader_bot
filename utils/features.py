@@ -33,7 +33,7 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
 
             
             ticker_df['signal_command'] = None
-            add_optimal_signals(ticker_df, price_column='mean_close', threshold=0.02)
+            add_optimal_signals(ticker_df, price_column='mean_close', threshold=0.01)
 
             # Возвращаем данные в оригинальный датафрейм по всем ценным бумагам
             # source_df.loc[source_df['ticker'] == ticker, 'scaled_close_price'] = ticker_df['scaled_close_price']

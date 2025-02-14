@@ -86,5 +86,7 @@ def get_stock_by_range(start: date, end: date) -> pd.DataFrame:
     # Сглаживаем выбросы
     get_rid_of_outliers(df)
     df.set_index(['ticker', 'stock_date'], inplace=True)
+    # Filtering by stock_date range (across all tickers)
+    df = df.sort_index()
     db_connection.close()
     return df
