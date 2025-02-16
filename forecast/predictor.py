@@ -28,7 +28,7 @@ class Predictor():
         + params['sma_weight'] * test_df['sma_signal_weight'] 
         + params['rsi_weight'] * test_df['rsi_signal_weight'] 
         + params['macd_weight'] * test_df['macd_signal_weight'] 
-        + test_df['ema_crossing_weight'] * params['ema_crossing_weight']
+        # + test_df['ema_crossing_weight'] * params['ema_crossing_weight']
 
         test_df.loc[test_df['final_weight'] > params['buy_th'], 'Signal'] = 1
         test_df.loc[test_df['final_weight'] < params['sell_th'], 'Signal'] = -1
@@ -43,4 +43,4 @@ class Predictor():
         stats = bt.run()
         last_signal = test_df.iloc[-1]['Signal']
 
-        return stats['Return [%]'], ("buy" if last_signal == 1 else "sell" if last_signal == -1 else "hold")
+        return stats['Return [%]'], (1 if last_signal == 1 else -1 if last_signal == -1 else 0)

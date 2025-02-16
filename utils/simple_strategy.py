@@ -25,11 +25,7 @@ class SimpleFollowSignalsStrategy(Strategy):
                    
                 if not self.position.is_short:
                     self.sell(size=1)
-            elif current_signal == -2:
-             
-                if self.position:
-                    print("close last")
-                    self.position.close()
+            
                     
             # elif current_signal == 0:
             #     if self.position:
