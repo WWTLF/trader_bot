@@ -2,3 +2,5 @@
 stock_data.db
 /__pycache__
 __pycache__
+./models
+/models
