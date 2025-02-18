@@ -46,6 +46,9 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             ticker_df.ffill(inplace=True)
             ticker_df['signal_command'] = None
             add_optimal_signals(ticker_df, price_column='mean_close', threshold=0.01)
+            ticker_df['train_signal_command'] = fill_forward_until_next_nonzero(ticker_df, 'signal_command', offset=3)
+
+            
 
             # Возвращаем данные в оригинальный датафрейм по всем ценным бумагам
             # source_df.loc[source_df['ticker'] == ticker, 'scaled_close_price'] = ticker_df['scaled_close_price']
@@ -71,6 +74,8 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'Stochastic_K'] = ticker_df['Stochastic_K'].values
             source_df.loc[(ticker, ticker_df.index), 'CCI'] = ticker_df['CCI'].values
             source_df.loc[(ticker, ticker_df.index), 'Stochastic_D'] = ticker_df['Stochastic_D'].values
+            source_df.loc[(ticker, ticker_df.index), 'train_signal_command'] = ticker_df['train_signal_command'].values
+
 
 
 
@@ -151,3 +156,21 @@ def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
 
     draft_signals = df[df['signal_command'] == "draft"]
     df.loc[draft_signals.index, "signal_command"] = 0
+
+
+
+def fill_forward_until_next_nonzero(df, column, offset=3):
+    filled_values = df[column].copy()
+    last_nonzero_index = None
+
+    for i in range(len(df)):
+        if df[column].iloc[i] != 0:
+            if last_nonzero_index is not None:
+                fill_start = last_nonzero_index + 1
+                fill_end = max(i - offset, fill_start)
+                filled_values.iloc[fill_start:fill_end] = df[column].iloc[last_nonzero_index]
+            last_nonzero_index = i
+
+    return filled_values
+
+# Apply the function to fill forward non-zero values until 3 rows before the next non-zero value
