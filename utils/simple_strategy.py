@@ -4,11 +4,9 @@ class SimpleFollowSignalsStrategy(Strategy):
     def init(self):
         self.signal = self.I(lambda: self.data.Signal)
         self.previous_signal = 0
-        print("data on init", self.data)
         # self.size = 0.1
 
     def next(self):
-        print("data on next", self.data)
         current_signal = self.signal[-1]
 
         if current_signal != self.previous_signal:

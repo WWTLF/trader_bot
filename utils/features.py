@@ -46,7 +46,8 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             ticker_df.ffill(inplace=True)
             ticker_df['signal_command'] = None
             add_optimal_signals(ticker_df, price_column='mean_close', threshold=0.01)
-            ticker_df['train_signal_command'] = fill_forward_until_next_nonzero(ticker_df, 'signal_command', offset=3)
+            add_optimal_signals2(ticker_df, price_column='mean_close',  signal_column='train_signal_command', threshold=0.01)
+            ticker_df['train_signal_command'] = fill_forward_until_next_nonzero(ticker_df, 'train_signal_command', offset=3)
 
             
 
@@ -89,14 +90,23 @@ def volume_oscillator(volume, short_period=5, long_period=14):
     return ((short_ma - long_ma) / long_ma) * 100
 
 
+def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='train_signal_command', threshold=0.01):
+    ticker_df['daily_return'] = ticker_df[price_column].pct_change()
+    ticker_df[signal_column] = 0
+    ticker_df.loc[ticker_df['daily_return'] >= threshold, signal_column] = 1
+    ticker_df.loc[ticker_df['daily_return'] <= -threshold, signal_column] = -1
+    ticker_df = ticker_df[1:]
+
+
+
 def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
     df['signal_command'] = 0
     prev_trend = 0
-    prev_price = df.iloc[2]['mean_close']
+    prev_price = df.iloc[2][price_column]
     # if prev_price == 0.0:
     #     prev_price = 0.0001
     for index, row in df[3:].iterrows():
-        current_price = row['mean_close']
+        current_price = row[price_column]
         pct = (current_price - prev_price) / prev_price
         if pct > 0 and prev_trend !=1:
             prev_trend = 1
@@ -106,11 +116,11 @@ def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
             df.loc[index, 'signal_command'] = "draft"    
         prev_price = current_price
 
-    prev_price = df.iloc[2]['mean_close']
+    prev_price = df.iloc[2][price_column]
     # print(prev_price)
     draft_signals = df[df['signal_command'] == "draft"]
     for index, row in draft_signals.iterrows():
-        current_price = row['mean_close']
+        current_price = row[price_column]
         # print("current price ", current_pruce)
         pct = abs(current_price - prev_price) / prev_price
         # print("pct           ", pct)
@@ -124,20 +134,20 @@ def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
     draft_signals = df[df['signal_command'] == "draft"]
     if len(draft_signals) < 2:
         return
-    # print(draft_signals.iloc[0]['mean_close'] ,draft_signals.iloc[1]['mean_close'] )
-    if draft_signals.iloc[0]['mean_close'] > draft_signals.iloc[1]['mean_close']:
+    # print(draft_signals.iloc[0][price_column] ,draft_signals.iloc[1][price_column] )
+    if draft_signals.iloc[0][price_column] > draft_signals.iloc[1][price_column]:
         df.loc[draft_signals.index[0], 'signal_command'] = -1
     else:
         df.loc[draft_signals.index[0],'signal_command'] = 1
 
     prev_deal_signal = df.loc[draft_signals.index[0], 'signal_command'] 
-    prev_deal_price = df.loc[draft_signals.index[0], 'mean_close'] 
+    prev_deal_price = df.loc[draft_signals.index[0], price_column] 
 
     loc_index = 0
     draft_signals = df[df['signal_command'] == "draft"]
     for index, row in draft_signals[:-1].iterrows():
-        current_price = row['mean_close']
-        next_price = draft_signals.iloc[loc_index + 1]['mean_close']
+        current_price = row[price_column]
+        next_price = draft_signals.iloc[loc_index + 1][price_column]
         # print(loc_index, prev_deal_price, current_price , next_price)
         if current_price > prev_deal_price:
             if prev_deal_signal == 1 and next_price < current_price:
@@ -162,14 +172,21 @@ def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
 def fill_forward_until_next_nonzero(df, column, offset=3):
     filled_values = df[column].copy()
     last_nonzero_index = None
+    # last_signal = 0
 
     for i in range(len(df)):
         if df[column].iloc[i] != 0:
+            # last_signal = df[column].iloc[i]
             if last_nonzero_index is not None:
                 fill_start = last_nonzero_index + 1
                 fill_end = max(i - offset, fill_start)
                 filled_values.iloc[fill_start:fill_end] = df[column].iloc[last_nonzero_index]
             last_nonzero_index = i
+
+    if last_nonzero_index is not None:
+        fill_start = last_nonzero_index + 1
+        fill_end = len(df)
+        filled_values.iloc[fill_start:fill_end] = df[column].iloc[last_nonzero_index]
 
     return filled_values
 

@@ -10,12 +10,6 @@ def add_signals(ticker_df: pd.DataFrame):
         ticker_df["macd_signal"] = get_filtered_macd_signals(ticker_df)
         ticker_df["sma_signal"] = np.where(ticker_df["SMA_50"] > ticker_df["SMA_200"], 1, np.where(ticker_df["SMA_50"] < ticker_df["SMA_200"], -1, 0))
         ticker_df["bb_signal"] = np.where(ticker_df["close"] < ticker_df["bb_lower"], 1, np.where(ticker_df["close"] > ticker_df["bb_upper"], -1, 0))
-        # add_signal_weight(ticker_df, "bb_signal", "bb_signal_weight")
-        # add_signal_weight(ticker_df, "sma_signal", "sma_signal_weight")
-        # add_signal_weight(ticker_df, "macd_signal", "macd_signal_weight")
-        # add_signal_weight(ticker_df, "RSI_signal", "rsi_signal_weight")
-        # add_signal_weight(ticker_df, "EMA_Cross_signal", "ema_crossing_weight")
-
         ticker_df['OBV_Signal'] = np.where(ticker_df['OBV'].diff() > 0, 1, -1)
         ticker_df['AD_Signal'] = np.where(ticker_df['AD'].diff() > 0, 1, -1)
         ticker_df['MFI_Signal'] = np.where(ticker_df['MFI'] < 20, 1, np.where(ticker_df['MFI'] > 80, -1, 0))
