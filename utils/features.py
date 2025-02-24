@@ -19,12 +19,14 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             # Создаем сигналы для покупки и продажи
             # Добавляем SMA/EMA для фильтрации тренда
             ticker_df["SMA_50"] = talib.SMA(ticker_df["close"], timeperiod=50)
+            ticker_df["SMA_20"] = talib.SMA(ticker_df["close"], timeperiod=20)
             ticker_df["SMA_200"] = talib.SMA(ticker_df["close"], timeperiod=200)
             ticker_df["EMA_50"] = talib.EMA(ticker_df["close"], timeperiod=50)
          
 
             ticker_df["EMA_9"] = talib.EMA(ticker_df["close"], timeperiod=9)
-            ticker_df["EMA_21"] = talib.EMA(ticker_df["close"], timeperiod=21)        
+            ticker_df["EMA_21"] = talib.EMA(ticker_df["close"], timeperiod=21)    
+            ticker_df["EMA_20"] = talib.EMA(ticker_df["close"], timeperiod=20)            
             ticker_df['RSI'] =  talib.RSI(ticker_df["close"], timeperiod=14)
 
 
@@ -40,14 +42,14 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
                                                           fastk_period=14, slowk_period=3, slowk_matype=0, 
                                                           slowd_period=3, slowd_matype=0)
             ticker_df['CCI'] = talib.CCI(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=14)
+            ticker_df['ATR'] = talib.ATR(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=14)
 
 
 
             ticker_df.ffill(inplace=True)
-            ticker_df['signal_command'] = None
-            add_optimal_signals(ticker_df, price_column='mean_close', threshold=0.01)
-            add_optimal_signals2(ticker_df, price_column='mean_close',  signal_column='train_signal_command', threshold=0.01)
-            ticker_df['train_signal_command'] = fill_forward_until_next_nonzero(ticker_df, 'train_signal_command', offset=3)
+
+            add_optimal_signals2(ticker_df, price_column='mean_close',  signal_column='train_signal_command', threshold=0.005)
+            # ticker_df['train_signal_command'] = fill_forward_until_next_nonzero(ticker_df, 'train_signal_command', offset=3)
 
             
 
@@ -60,9 +62,10 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'EMA_50'] = ticker_df['EMA_50'].values
             source_df.loc[(ticker, ticker_df.index), 'SMA_50'] = ticker_df['SMA_50'].values
             source_df.loc[(ticker, ticker_df.index), 'SMA_200'] = ticker_df['SMA_200'].values
-            source_df.loc[(ticker, ticker_df.index), 'signal_command'] = ticker_df['signal_command'].values
             source_df.loc[(ticker, ticker_df.index), 'EMA_9'] = ticker_df['EMA_9'].values
             source_df.loc[(ticker, ticker_df.index), 'EMA_21'] = ticker_df['EMA_21'].values
+            source_df.loc[(ticker, ticker_df.index), 'SMA_20'] = ticker_df['SMA_20'].values
+            source_df.loc[(ticker, ticker_df.index), 'EMA_20'] = ticker_df['EMA_20'].values
             source_df.loc[(ticker, ticker_df.index), 'mean_close'] = ticker_df['mean_close'].values
             # source_df.loc[(ticker, ticker_df.index), 'signal_command'] = ticker_df['signal_command'].values
             source_df.loc[(ticker, ticker_df.index), 'bb_upper'] = ticker_df['bb_upper'].values
@@ -76,12 +79,14 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'CCI'] = ticker_df['CCI'].values
             source_df.loc[(ticker, ticker_df.index), 'Stochastic_D'] = ticker_df['Stochastic_D'].values
             source_df.loc[(ticker, ticker_df.index), 'train_signal_command'] = ticker_df['train_signal_command'].values
+            source_df.loc[(ticker, ticker_df.index), 'daily_return'] = ticker_df['daily_return'].values
+            source_df.loc[(ticker, ticker_df.index), 'ATR'] = ticker_df['ATR'].values
 
 
 
 
 
-    source_df['daily_return'] = source_df.groupby('ticker')['close'].pct_change()
+    # source_df['daily_return'] = source_df.groupby('ticker')['close'].pct_change()
     return source_df[1:]
 
 def volume_oscillator(volume, short_period=5, long_period=14):
@@ -90,16 +95,22 @@ def volume_oscillator(volume, short_period=5, long_period=14):
     return ((short_ma - long_ma) / long_ma) * 100
 
 
-def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='train_signal_command', threshold=0.01):
+def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='train_signal_command', threshold=0.005):
     ticker_df['daily_return'] = ticker_df[price_column].pct_change()
     ticker_df[signal_column] = 0
     ticker_df.loc[ticker_df['daily_return'] >= threshold, signal_column] = 1
     ticker_df.loc[ticker_df['daily_return'] <= -threshold, signal_column] = -1
-    ticker_df = ticker_df[1:]
+    prev_signal = 0
+    for i, row in ticker_df.loc[ticker_df['train_signal_command'] !=0].iterrows():
+        signal_command = row['train_signal_command']
+        if signal_command == prev_signal:
+            ticker_df.loc[i, 'train_signal_command'] = 0
+        prev_signal = signal_command
+    # ticker_df.loc[ticker_df[signal_column].duplicated(keep='first'), signal_column] = 0
 
 
 
-def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
+def add_optimal_signals(df, price_column = 'mean_close', threshold=0.01):
     df['signal_command'] = 0
     prev_trend = 0
     prev_price = df.iloc[2][price_column]
@@ -130,6 +141,8 @@ def add_optimal_signals(df, price_column = 'mean_close', threshold=0.05):
             df.loc[index, 'signal_command'] = 0
         prev_price = current_price
 
+    df.iloc[0 ,df.columns.get_loc('signal_command')] = 'draft'
+    df.iloc[-1 ,df.columns.get_loc('signal_command')] = 'draft'
 
     draft_signals = df[df['signal_command'] == "draft"]
     if len(draft_signals) < 2:
