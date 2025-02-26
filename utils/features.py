@@ -48,9 +48,11 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
 
             ticker_df.ffill(inplace=True)
 
-            add_optimal_signals2(ticker_df, price_column='mean_close',  signal_column='train_signal_command', threshold=0.005)
-            # ticker_df['train_signal_command'] = fill_forward_until_next_nonzero(ticker_df, 'train_signal_command', offset=3)
-
+            
+            add_optimal_signals(ticker_df, price_column='close' , signal_column='train_signal_command', threshold=0.005)
+            add_optimal_signals2(ticker_df, price_column='close',  signal_column='train_signal_command_2', threshold=0.005)
+            ticker_df['train_signal_command_3'] = ticker_df['train_signal_command_2']
+            fill_forward_until_next_nonzero(ticker_df, column='train_signal_command_3', offset=3)
             
 
             # Возвращаем данные в оригинальный датафрейм по всем ценным бумагам
@@ -79,6 +81,8 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'CCI'] = ticker_df['CCI'].values
             source_df.loc[(ticker, ticker_df.index), 'Stochastic_D'] = ticker_df['Stochastic_D'].values
             source_df.loc[(ticker, ticker_df.index), 'train_signal_command'] = ticker_df['train_signal_command'].values
+            source_df.loc[(ticker, ticker_df.index), 'train_signal_command_2'] = ticker_df['train_signal_command_2'].values
+            source_df.loc[(ticker, ticker_df.index), 'train_signal_command_3'] = ticker_df['train_signal_command_3'].values
             source_df.loc[(ticker, ticker_df.index), 'daily_return'] = ticker_df['daily_return'].values
             source_df.loc[(ticker, ticker_df.index), 'ATR'] = ticker_df['ATR'].values
 
@@ -95,90 +99,26 @@ def volume_oscillator(volume, short_period=5, long_period=14):
     return ((short_ma - long_ma) / long_ma) * 100
 
 
-def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='train_signal_command', threshold=0.005):
+def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='train_signal_command_2', threshold=0.005):
     ticker_df['daily_return'] = ticker_df[price_column].pct_change()
     ticker_df[signal_column] = 0
-    ticker_df.loc[ticker_df['daily_return'] >= threshold, signal_column] = 1
-    ticker_df.loc[ticker_df['daily_return'] <= -threshold, signal_column] = -1
+    ticker_df.loc[ticker_df['daily_return'] > threshold, signal_column] = 1
+    ticker_df.loc[ticker_df['daily_return'] < -threshold, signal_column] = -1
     prev_signal = 0
-    for i, row in ticker_df.loc[ticker_df['train_signal_command'] !=0].iterrows():
-        signal_command = row['train_signal_command']
+    for i, row in ticker_df.loc[ticker_df[signal_column] !=0].iterrows():
+        signal_command = row[signal_column]
         if signal_command == prev_signal:
-            ticker_df.loc[i, 'train_signal_command'] = 0
+            ticker_df.loc[i, signal_column] = 0
         prev_signal = signal_command
     # ticker_df.loc[ticker_df[signal_column].duplicated(keep='first'), signal_column] = 0
 
 
 
-def add_optimal_signals(df, price_column = 'mean_close', threshold=0.01):
-    df['signal_command'] = 0
-    prev_trend = 0
-    prev_price = df.iloc[2][price_column]
-    # if prev_price == 0.0:
-    #     prev_price = 0.0001
-    for index, row in df[3:].iterrows():
-        current_price = row[price_column]
-        pct = (current_price - prev_price) / prev_price
-        if pct > 0 and prev_trend !=1:
-            prev_trend = 1
-            df.loc[index, 'signal_command'] = "draft"
-        elif pct < 0 and prev_trend != -1:
-            prev_trend = -1
-            df.loc[index, 'signal_command'] = "draft"    
-        prev_price = current_price
-
-    prev_price = df.iloc[2][price_column]
-    # print(prev_price)
-    draft_signals = df[df['signal_command'] == "draft"]
-    for index, row in draft_signals.iterrows():
-        current_price = row[price_column]
-        # print("current price ", current_pruce)
-        pct = abs(current_price - prev_price) / prev_price
-        # print("pct           ", pct)
-        if pct > threshold: 
-            df.loc[index, 'signal_command'] = 'draft'
-        else:
-            df.loc[index, 'signal_command'] = 0
-        prev_price = current_price
-
-    df.iloc[0 ,df.columns.get_loc('signal_command')] = 'draft'
-    df.iloc[-1 ,df.columns.get_loc('signal_command')] = 'draft'
-
-    draft_signals = df[df['signal_command'] == "draft"]
-    if len(draft_signals) < 2:
-        return
-    # print(draft_signals.iloc[0][price_column] ,draft_signals.iloc[1][price_column] )
-    if draft_signals.iloc[0][price_column] > draft_signals.iloc[1][price_column]:
-        df.loc[draft_signals.index[0], 'signal_command'] = -1
-    else:
-        df.loc[draft_signals.index[0],'signal_command'] = 1
-
-    prev_deal_signal = df.loc[draft_signals.index[0], 'signal_command'] 
-    prev_deal_price = df.loc[draft_signals.index[0], price_column] 
-
-    loc_index = 0
-    draft_signals = df[df['signal_command'] == "draft"]
-    for index, row in draft_signals[:-1].iterrows():
-        current_price = row[price_column]
-        next_price = draft_signals.iloc[loc_index + 1][price_column]
-        # print(loc_index, prev_deal_price, current_price , next_price)
-        if current_price > prev_deal_price:
-            if prev_deal_signal == 1 and next_price < current_price:
-                df.loc[index, 'signal_command'] = -1
-                prev_deal_signal = -1
-            else:
-                df.loc[index, 'signal_command'] = 0
-        else:
-            if prev_deal_signal == -1 and next_price > current_price:
-                df.loc[index, 'signal_command'] = 1
-                prev_deal_signal = 1
-            else:
-                df.loc[index, 'signal_command'] = 0
-        prev_deal_price = current_price
-        loc_index = loc_index + 1
-
-    draft_signals = df[df['signal_command'] == "draft"]
-    df.loc[draft_signals.index, "signal_command"] = 0
+def add_optimal_signals(df, price_column = 'mean_close', signal_column='train_signal_command' , threshold=0.001):
+    df['daily_return'] = df[price_column].pct_change()
+    df[signal_column]  = 0
+    df.loc[df['daily_return'] > threshold, signal_column] = 1
+    df.loc[df['daily_return'] < -threshold, signal_column] = -1
 
 
 
