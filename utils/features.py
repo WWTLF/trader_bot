@@ -22,12 +22,15 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             ticker_df["SMA_20"] = talib.SMA(ticker_df["close"], timeperiod=20)
             ticker_df["SMA_200"] = talib.SMA(ticker_df["close"], timeperiod=200)
             ticker_df["EMA_50"] = talib.EMA(ticker_df["close"], timeperiod=50)
+            ticker_df["SMA_30"] = talib.EMA(ticker_df["close"], timeperiod=30)
+            ticker_df["SMA_60"] = talib.EMA(ticker_df["close"], timeperiod=60)
          
 
             ticker_df["EMA_9"] = talib.EMA(ticker_df["close"], timeperiod=9)
             ticker_df["EMA_21"] = talib.EMA(ticker_df["close"], timeperiod=21)    
             ticker_df["EMA_20"] = talib.EMA(ticker_df["close"], timeperiod=20)            
-            ticker_df['RSI'] =  talib.RSI(ticker_df["close"], timeperiod=14)
+            ticker_df['RSI'] =  talib.RSI(ticker_df["close"], timeperiod=30)
+            ticker_df['DX'] =  talib.DX(ticker_df["high"], ticker_df['low'], ticker_df['close'], timeperiod=30)
 
 
             ticker_df['OBV'] = talib.OBV(ticker_df['close'], ticker_df['volume'])
@@ -41,7 +44,7 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             ticker_df['Stochastic_K'], ticker_df['Stochastic_D'] = talib.STOCH(ticker_df['high'], ticker_df['low'], ticker_df['close'],
                                                           fastk_period=14, slowk_period=3, slowk_matype=0, 
                                                           slowd_period=3, slowd_matype=0)
-            ticker_df['CCI'] = talib.CCI(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=14)
+            ticker_df['CCI'] = talib.CCI(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=30)
             ticker_df['ATR'] = talib.ATR(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=14)
 
 
@@ -85,6 +88,9 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'train_signal_command_3'] = ticker_df['train_signal_command_3'].values
             source_df.loc[(ticker, ticker_df.index), 'daily_return'] = ticker_df['daily_return'].values
             source_df.loc[(ticker, ticker_df.index), 'ATR'] = ticker_df['ATR'].values
+            source_df.loc[(ticker, ticker_df.index), 'DX'] = ticker_df['DX'].values
+            source_df.loc[(ticker, ticker_df.index), 'SMA_30'] = ticker_df['SMA_30'].values
+            source_df.loc[(ticker, ticker_df.index), 'SMA_60'] = ticker_df['SMA_60'].values
 
 
 
