@@ -62,6 +62,7 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             # source_df.loc[source_df['ticker'] == ticker, 'scaled_close_price'] = ticker_df['scaled_close_price']
             source_df.loc[(ticker, ticker_df.index), 'macd'] = ticker_df['macd'].values
             source_df.loc[(ticker, ticker_df.index), 'macd_signal_line'] = ticker_df['macd_signal_line'].values
+            source_df.loc[(ticker, ticker_df.index), 'macd_hist'] = ticker_df['macd_hist'].values
             source_df.loc[(ticker, ticker_df.index), 'tema'] = ticker_df['tema'].values
             source_df.loc[(ticker, ticker_df.index), 'RSI'] = ticker_df['RSI'].values
             source_df.loc[(ticker, ticker_df.index), 'EMA_50'] = ticker_df['EMA_50'].values
