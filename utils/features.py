@@ -20,6 +20,7 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             # Добавляем SMA/EMA для фильтрации тренда
             ticker_df["SMA_50"] = talib.SMA(ticker_df["close"], timeperiod=50)
             ticker_df["SMA_20"] = talib.SMA(ticker_df["close"], timeperiod=20)
+            ticker_df["SMA_10"] = talib.SMA(ticker_df["close"], timeperiod=10)
             ticker_df["SMA_200"] = talib.SMA(ticker_df["close"], timeperiod=200)
             ticker_df["EMA_50"] = talib.EMA(ticker_df["close"], timeperiod=50)
             ticker_df["SMA_30"] = talib.EMA(ticker_df["close"], timeperiod=30)
@@ -49,14 +50,23 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
 
 
 
+            ticker_df['SMA_200_50'] = ticker_df['SMA_200'] - ticker_df['SMA_50']
+            ticker_df['SMA_50_20'] = ticker_df['SMA_50'] - ticker_df['SMA_20']
+            ticker_df['BB_UPPER_CLOSE'] = ticker_df['bb_upper'] - ticker_df['close']
+            ticker_df['BB_LOWER_CLOSE'] = ticker_df['bb_lower'] - ticker_df['close']
+            
+            ticker_df['week_day'] = ticker_df.index.weekday
+            ticker_df['year_day'] = ticker_df.index.day_of_year
+
+
             ticker_df.ffill(inplace=True)
 
             
-            add_optimal_signals(ticker_df, price_column='close' , signal_column='train_signal_command', threshold=0.005)
-            add_optimal_signals2(ticker_df, price_column='close',  signal_column='train_signal_command_2', threshold=0.005)
+            add_optimal_signals(ticker_df, price_column='close' , signal_column='train_signal_command', threshold=0.02)
+            add_optimal_signals2(ticker_df, price_column='close',  signal_column='train_signal_command_2', threshold=0.02)
             ticker_df['train_signal_command_3'] = ticker_df['train_signal_command_2']
             fill_forward_until_next_nonzero(ticker_df, column='train_signal_command_3', offset=3)
-            
+            ticker_df['daily_return_volume'] = ticker_df['daily_return'] * ticker_df['volume']
 
             # Возвращаем данные в оригинальный датафрейм по всем ценным бумагам
             # source_df.loc[source_df['ticker'] == ticker, 'scaled_close_price'] = ticker_df['scaled_close_price']
@@ -91,9 +101,17 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'ATR'] = ticker_df['ATR'].values
             source_df.loc[(ticker, ticker_df.index), 'DX'] = ticker_df['DX'].values
             source_df.loc[(ticker, ticker_df.index), 'SMA_30'] = ticker_df['SMA_30'].values
+            source_df.loc[(ticker, ticker_df.index), 'SMA_10'] = ticker_df['SMA_10'].values
             source_df.loc[(ticker, ticker_df.index), 'SMA_60'] = ticker_df['SMA_60'].values
 
 
+            source_df.loc[(ticker, ticker_df.index), 'SMA_200_50'] = ticker_df['SMA_200_50'].values
+            source_df.loc[(ticker, ticker_df.index), 'SMA_50_20'] = ticker_df['SMA_50_20'].values
+            source_df.loc[(ticker, ticker_df.index), 'BB_UPPER_CLOSE'] = ticker_df['BB_UPPER_CLOSE'].values
+            source_df.loc[(ticker, ticker_df.index), 'BB_LOWER_CLOSE'] = ticker_df['BB_LOWER_CLOSE'].values
+            source_df.loc[(ticker, ticker_df.index), 'daily_return_volume'] = ticker_df['daily_return_volume'].values
+            source_df.loc[(ticker, ticker_df.index), 'week_day'] = ticker_df['week_day'].values
+            source_df.loc[(ticker, ticker_df.index), 'year_day'] = ticker_df['year_day'].values
 
 
 
@@ -111,6 +129,7 @@ def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='t
     ticker_df[signal_column] = 0
     ticker_df.loc[ticker_df['daily_return'] > threshold, signal_column] = 1
     ticker_df.loc[ticker_df['daily_return'] < -threshold, signal_column] = -1
+    ticker_df[signal_column] = ticker_df[signal_column].shift(-1)
     prev_signal = 0
     for i, row in ticker_df.loc[ticker_df[signal_column] !=0].iterrows():
         signal_command = row[signal_column]
@@ -126,6 +145,7 @@ def add_optimal_signals(df, price_column = 'mean_close', signal_column='train_si
     df[signal_column]  = 0
     df.loc[df['daily_return'] > threshold, signal_column] = 1
     df.loc[df['daily_return'] < -threshold, signal_column] = -1
+    df[signal_column] = df[signal_column].shift(-1)
 
 
 

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from scipy.signal import argrelextrema
 
 def add_signals(ticker_df: pd.DataFrame):
         ticker_df['RSI_signal'] = 0
@@ -19,7 +20,8 @@ def add_signals(ticker_df: pd.DataFrame):
 
         ticker_df['close_to_volume'] = ticker_df['close'] / ticker_df['volume']
         ticker_df['close_by_volume'] = ticker_df['close'] * ticker_df['volume']
-
+        ticker_df['sma_signal_2'] = np.where(ticker_df['SMA_10'] > ticker_df['SMA_20'], 1, -1)
+        mark_trade_signals(ticker_df, 'train_signal_command_4')
 
 def get_filtered_macd_signals(df):
     """Функция для генерации MACD сигналов с фильтром SMA"""
@@ -58,3 +60,17 @@ def add_signal_weight(signal_df: pd.DataFrame, signal_column_name: str ,singal_w
     # Нормализуем вес к 1
     scaler = MinMaxScaler()
     signal_df[singal_weight_column]  = scaler.fit_transform(signal_df[[singal_weight_column]]) - 0.5
+
+
+
+
+def mark_trade_signals(df, column_name):
+    df[column_name] = 0  # По умолчанию нет сигнала
+    
+    # Ищем локальные минимумы (покупки)
+    local_min = argrelextrema(df['close'].values, np.less, order=5)[0]
+    df.loc[df.index[local_min], column_name] = 1  # Покупка
+    
+    # Ищем локальные максимумы (продажи)
+    local_max = argrelextrema(df['close'].values, np.greater, order=5)[0]
+    df.loc[df.index[local_max], column_name] = -1  # Продажа
