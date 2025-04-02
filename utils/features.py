@@ -12,25 +12,39 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             # ticker_df['scaled_close_price'] = scaler.fit_transform(ticker_df[['close']])
 
             ticker_df['tema'] = talib.TEMA(ticker_df['close'], timeperiod=24)
+            # ticker_df['tema'] = ticker_df['tema'].shift(-3)
             ticker_df['macd'], ticker_df['macd_signal_line'], ticker_df['macd_hist'] = talib.MACD(ticker_df['close'], fastperiod=12, slowperiod=26, signalperiod=9)
+            ticker_df['macd'] = ticker_df['macd'].backfill()
+            ticker_df['macd_macd_signal_line'] =  ticker_df['macd'] - ticker_df['macd_signal_line']
             ticker_df["bb_upper"], _ , ticker_df["bb_lower"] = talib.BBANDS(ticker_df['close'], matype=MA_Type.EMA)
 
           
             # Создаем сигналы для покупки и продажи
             # Добавляем SMA/EMA для фильтрации тренда
             ticker_df["SMA_50"] = talib.SMA(ticker_df["close"], timeperiod=50)
+            # ticker_df['SMA_50'] = ticker_df['SMA_50'].shift(-24)
             ticker_df["SMA_20"] = talib.SMA(ticker_df["close"], timeperiod=20)
+            # ticker_df['SMA_20'] = ticker_df['SMA_20'].shift(-9)
             ticker_df["SMA_10"] = talib.SMA(ticker_df["close"], timeperiod=10)
+            # ticker_df['SMA_10'] = ticker_df['SMA_10'].shift(-4)
             ticker_df["SMA_200"] = talib.SMA(ticker_df["close"], timeperiod=200)
+            # ticker_df['SMA_200'] = ticker_df['SMA_200'].shift(-99)
             ticker_df["EMA_50"] = talib.EMA(ticker_df["close"], timeperiod=50)
+            # ticker_df['EMA_50'] = ticker_df['EMA_50'].shift(-24)
             ticker_df["SMA_30"] = talib.EMA(ticker_df["close"], timeperiod=30)
+            ticker_df['SMA_30'] = ticker_df['SMA_30'].shift(-14)
             ticker_df["SMA_60"] = talib.EMA(ticker_df["close"], timeperiod=60)
+            ticker_df['SMA_60'] = ticker_df['SMA_60'].shift(-27)
          
 
             ticker_df["EMA_9"] = talib.EMA(ticker_df["close"], timeperiod=9)
-            ticker_df["EMA_21"] = talib.EMA(ticker_df["close"], timeperiod=21)    
-            ticker_df["EMA_20"] = talib.EMA(ticker_df["close"], timeperiod=20)            
-            ticker_df['RSI'] =  talib.RSI(ticker_df["close"], timeperiod=30)
+            ticker_df['EMA_9_SHIFTED'] = ticker_df['EMA_9'].shift(-9)
+            ticker_df["EMA_21"] = talib.EMA(ticker_df["close"], timeperiod=21) 
+            # ticker_df['EMA_21'] = ticker_df['EMA_21'].shift(-9)
+            ticker_df["EMA_20"] = talib.EMA(ticker_df["close"], timeperiod=20)     
+            # ticker_df['EMA_20'] = ticker_df['EMA_20'].shift(-9)       
+            ticker_df['RSI'] =  talib.RSI(ticker_df["close"], timeperiod=10)
+            ticker_df['RSI'] = ticker_df['RSI'].backfill()
             ticker_df['DX'] =  talib.DX(ticker_df["high"], ticker_df['low'], ticker_df['close'], timeperiod=30)
 
 
@@ -46,14 +60,19 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
                                                           fastk_period=14, slowk_period=3, slowk_matype=0, 
                                                           slowd_period=3, slowd_matype=0)
             ticker_df['CCI'] = talib.CCI(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=30)
+            ticker_df['CCI'] = ticker_df['CCI'].backfill()
             ticker_df['ATR'] = talib.ATR(ticker_df['high'], ticker_df['low'], ticker_df['close'], timeperiod=14)
 
 
 
             ticker_df['SMA_200_50'] = ticker_df['SMA_200'] - ticker_df['SMA_50']
+            ticker_df['SMA_200_50'] = ticker_df['SMA_200_50'].backfill()
             ticker_df['SMA_50_20'] = ticker_df['SMA_50'] - ticker_df['SMA_20']
+            ticker_df['SMA_50_20'] = ticker_df['SMA_50_20'].backfill()
             ticker_df['BB_UPPER_CLOSE'] = ticker_df['bb_upper'] - ticker_df['close']
+            ticker_df['BB_UPPER_CLOSE'] = ticker_df['BB_UPPER_CLOSE'].backfill()
             ticker_df['BB_LOWER_CLOSE'] = ticker_df['bb_lower'] - ticker_df['close']
+            ticker_df['BB_LOWER_CLOSE'] = ticker_df['BB_LOWER_CLOSE'].backfill()
             
             ticker_df['week_day'] = ticker_df.index.weekday
             ticker_df['year_day'] = ticker_df.index.day_of_year
@@ -79,6 +98,7 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'SMA_50'] = ticker_df['SMA_50'].values
             source_df.loc[(ticker, ticker_df.index), 'SMA_200'] = ticker_df['SMA_200'].values
             source_df.loc[(ticker, ticker_df.index), 'EMA_9'] = ticker_df['EMA_9'].values
+            source_df.loc[(ticker, ticker_df.index), 'EMA_9_SHIFTED'] = ticker_df['EMA_9_SHIFTED'].values
             source_df.loc[(ticker, ticker_df.index), 'EMA_21'] = ticker_df['EMA_21'].values
             source_df.loc[(ticker, ticker_df.index), 'SMA_20'] = ticker_df['SMA_20'].values
             source_df.loc[(ticker, ticker_df.index), 'EMA_20'] = ticker_df['EMA_20'].values
@@ -112,7 +132,7 @@ def add_features(source_df: pd.DataFrame) -> pd.DataFrame:
             source_df.loc[(ticker, ticker_df.index), 'daily_return_volume'] = ticker_df['daily_return_volume'].values
             source_df.loc[(ticker, ticker_df.index), 'week_day'] = ticker_df['week_day'].values
             source_df.loc[(ticker, ticker_df.index), 'year_day'] = ticker_df['year_day'].values
-
+            source_df.loc[(ticker, ticker_df.index), 'macd_macd_signal_line'] = ticker_df['macd_macd_signal_line'].values
 
 
     # source_df['daily_return'] = source_df.groupby('ticker')['close'].pct_change()
@@ -140,7 +160,7 @@ def add_optimal_signals2(ticker_df, price_column='mean_close' , signal_column='t
 
 
 
-def add_optimal_signals(df, price_column = 'mean_close', signal_column='train_signal_command' , threshold=0.001):
+def add_optimal_signals(df, price_column = 'mean_close', signal_column='train_signal_command' , threshold=0.00):
     df['daily_return'] = df[price_column].pct_change()
     df[signal_column]  = 0
     df.loc[df['daily_return'] > threshold, signal_column] = 1
