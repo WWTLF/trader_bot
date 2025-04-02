@@ -31,4 +31,4 @@ class MLModelConfigRepo:
         id, model_name, config, path = row
         cur.close()
         # conn.close()
-        return MlModelConfig(id, model_name, json.loads(config), path)
+        return MlModelConfig(id, model_name, config, path)

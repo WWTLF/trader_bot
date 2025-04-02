@@ -65,7 +65,7 @@ class LSTMPredictorService:
             initial_state_mean=initial_price,  # Первая цена (например, средняя)
             initial_state_covariance=0.01,  # Начальная неопределенность (уменьшена)
             observation_covariance=0.005,  # Ошибка предсказания LSTM (чем меньше, тем сильнее сглаживание)
-            transition_covariance=0.001  # Насколько плавно менять (чем меньше, тем более плавный тренд)
+            transition_covariance=0.0005  # Насколько плавно менять (чем меньше, тем более плавный тренд)
         )
 
 
