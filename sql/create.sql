@@ -30,3 +30,26 @@ CREATE TABLE Position (
     opened BOOLEAN NOT NULL,
     profit FLOAT8
 );
+
+CREATE TABLE decision (
+    id SERIAL PRIMARY KEY,
+    ticker TEXT NOT NULL,
+    decision_date DATE NOT NULL,
+    position_id INT,
+    filtered_pred_price JSONB NOT NULL,
+    filtered_covariance JSONB NOT NULL,
+    signal INT NOT NULL,
+    close_prev BOOLEAN NOT NULL
+);
+
+CREATE TABLE extra_feature (
+    id SERIAL PRIMARY KEY,
+    ticker TEXT NOT NULL,
+    stock_date DATE NOT NULL,
+    feature_name TEXT NOT NULL,
+    feature_value NUMERIC NOT NULL
+);
+
+-- Уникальность фичи на дату и тикер
+CREATE UNIQUE INDEX uniq_extra_feature
+    ON extra_feature (ticker, stock_date, feature_name);

@@ -1,14 +1,14 @@
 from datetime import date
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
-from utils.outliers import get_rid_of_outliers
+# from utils.outliers import get_rid_of_outliers
 import pandas as pd
 from repositories.stock_data_repo import StockDataRepo
 from models.stock_data import StockData
 from db import get_conn
 
 def download_all():
-    tickers_to_download = ['AAPL', 'GOOG','AMZN', 'MSFT', 'AMD', 'NVDA', 'IBM']
+    tickers_to_download = ['AAPL', 'GOOG','AMZN', 'MSFT', 'AMD', 'NVDA', 'IBM', 'TSLA']
     conn = get_conn()
     for t in tickers_to_download:
         preload_date_for_ticker(conn, t,  date.today())

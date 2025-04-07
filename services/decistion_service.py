@@ -1,14 +1,26 @@
 from models.position import Position
 from datetime import date
 from datetime import datetime
+from repositories.position_repo import PositionRepository
+import psycopg
 
 class DecisionService:
-    def __init__(self, ticker: str):
+    def __init__(self, ticker: str, conn: psycopg.Connection):
         self.ticker = ticker
         self.position = None
         self.profit = 0.0
         self.not_trust_th = 0.3
         self.not_trust_date = date(1971, 1, 1)
+        self.conn = conn
+        self.position_repo = PositionRepository(conn)
+
+
+    def deserialize(self):
+        last_position = self.position_repo.get_last_position(self.ticker)
+        if last_position.opened:
+            self.postion = last_position
+        else:
+            self.position = None
 
     def closeLastPosition(self, current_date: date, price: float):
         self.position.close_price = price
@@ -20,7 +32,7 @@ class DecisionService:
         self.position.opened = False
         self.profit = self.profit + self.position.profit
         self.position = None
-        # TODO: Persist
+        self.position_repo.update(self.position)
 
     def decide(self, current_date: date,signal: int, price: float, qty: int, not_trust: float)-> tuple[bool, int]:
 
@@ -47,6 +59,7 @@ class DecisionService:
                     qty=qty, 
                     opened=True,
                     profit=None)
+                self.position_repo.save(self.position)
                 return False, 1
             else:
                 if self.position.position_type == 'short':
@@ -63,6 +76,7 @@ class DecisionService:
                         qty=qty, 
                         opened=True,
                         profit=None)
+                    self.position_repo.update(self.position)
                     return True, 1
 
             
@@ -80,6 +94,7 @@ class DecisionService:
                     qty=qty, 
                     opened=True,
                     profit=None)
+                self.position_repo.update(self.position)
                 return False, -1
             else:
                 if self.position.position_type == 'long':
@@ -96,5 +111,6 @@ class DecisionService:
                         qty=qty, 
                         opened=True,
                         profit=None)
+                    self.position_repo.save(self.position)
                     return True, -1
         return False, 0

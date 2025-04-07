@@ -9,6 +9,7 @@ import datetime
 from repositories.model_config import MLModelConfigRepo
 from sklearn.preprocessing import MinMaxScaler
 from models.ml_model_config import MlModelConfig
+from repositories.extra_feature import ExtraFeatureRepository
 
 class LSTMVerifier(nn.Module):
     def __init__(self, input_size, hidden_size=64, num_layers=2, dropout_rate=0.3, l1_lambda=0.00001, l2_lambda=0.0002):
@@ -54,7 +55,11 @@ class LSTMVerifierService:
 
 
 
-    def predict(self, date: datetime.datetime) -> tuple:
+    def predict(self, date: datetime.datetime) -> float:
+
+        extra_features_repo = ExtraFeatureRepository(conn=self.db_connection)
+
+
         cpu = torch.device("cpu")
         sequence_length = self.model_config.config['seq_length']
         pred_df = self.signals_df.loc[self.signals_df.index <= date]
@@ -64,6 +69,19 @@ class LSTMVerifierService:
         scalerX.scale_ =  self.model_config.config['scalerSlaceX']
 
         pred_df = pred_df[-sequence_length:]
+        extra_features = extra_features_repo.get_all_for_ticker_and_date(self.ticker, pred_df.index[0], pred_df.index[-1])
+        pred_df['pct_real_close'] = 0.0
+        pred_df['pct_pred_close'] = 0.0
+        pred_df['pct_pred_close_real_clopse'] = 0.0
+
+        for idx, row in pred_df.iterrows():
+            if idx in extra_features.index:
+                pred_df.loc[idx, 'pct_real_close'] = extra_features.loc[idx]['pct_real_close']
+                pred_df.loc[idx, 'pct_pred_close'] = extra_features.loc[idx]['pct_pred_close']
+                pred_df.loc[idx, 'pct_pred_close_real_clopse'] = extra_features.loc[idx]['pct_pred_close_real_clopse']
+       
+
+
         X = scalerX.transform(pred_df[self.features])
         sequences = []
         sequences.append(X)
@@ -83,8 +101,8 @@ class LSTMVerifierService:
             valid_predictions = model(X_valid) # Предсказания на валидационном DS
 
 
-        pred_price = valid_predictions[0].item()
+        non_trust_level = valid_predictions[0].item()
         # print(pred_price)
 
-        return pred_price
+        return non_trust_level
 

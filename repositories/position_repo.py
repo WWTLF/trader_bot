@@ -1,86 +1,107 @@
 from typing import Optional, List
 from models.position import Position
-from typing import Optional, List
-from db import get_conn
+import psycopg
+# from db import get_conn
 
-class PositionRepo:
-    @staticmethod
-    def insert(position: Position) -> int:
-        query = """
-            INSERT INTO Position (
-                ticker, opened_at, closed_at, position_type,
-                open_price, close_price, qty, opened, profit
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id;
-        """
-        values = (
-            position.ticker,
-            position.opened_at,
-            position.closed_at,
-            position.position_type,
-            position.open_price,
-            position.close_price,
-            position.qty,
-            position.opened,
-            position.profit
-        )
-        conn = get_conn
-        with conn.cursor() as cur:
-            cur.execute(query, values)
-            new_id = cur.fetchone()[0]
-            return new_id
+class PositionRepository:
+    def __init__(self, conn: psycopg.Connection):
+        self.conn = conn
 
-    @staticmethod
-    def get_by_id(position_id: int) -> Optional[Position]:
-        query = "SELECT * FROM Position WHERE id = %s;"
-        conn = get_conn
-        with conn.cursor() as cur:
-            cur.execute(query, (position_id,))
+    def save(self, pos: Position) -> int:
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO position (
+                    ticker, opened_at, closed_at, position_type, 
+                    open_price, close_price, qty, opened, profit
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (ticker, opened_at) DO UPDATE
+                SET 
+                    closed_at = EXCLUDED.closed_at,
+                    position_type = EXCLUDED.position_type,
+                    open_price = EXCLUDED.open_price,
+                    close_price = EXCLUDED.close_price,
+                    qty = EXCLUDED.qty,
+                    opened = EXCLUDED.opened,
+                    profit = EXCLUDED.profit
+                RETURNING id;
+            """, (
+                pos.ticker,
+                pos.opened_at,
+                pos.closed_at,
+                pos.position_type,
+                pos.open_price,
+                pos.close_price,
+                pos.qty,
+                pos.opened,
+                pos.profit
+            ))
+            pos.id = cur.fetchone()[0]
+        self.conn.commit()
+        return pos.id
+
+    def update(self, pos: Position) -> None:
+        if pos.id is None:
+            raise ValueError("Cannot update Position without ID")
+
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE position
+                SET ticker = %s,
+                    opened_at = %s,
+                    closed_at = %s,
+                    position_type = %s,
+                    open_price = %s,
+                    close_price = %s,
+                    qty = %s,
+                    opened = %s,
+                    profit = %s
+                WHERE id = %s
+            """, (
+                pos.ticker,
+                pos.opened_at,
+                pos.closed_at,
+                pos.position_type,
+                pos.open_price,
+                pos.close_price,
+                pos.qty,
+                pos.opened,
+                pos.profit,
+                pos.id
+            ))
+        self.conn.commit()
+
+    def get_by_id(self, id: int) -> Optional[Position]:
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, ticker, opened_at, closed_at, position_type,
+                       open_price, close_price, qty, opened, profit
+                FROM position
+                WHERE id = %s
+            """, (id,))
             row = cur.fetchone()
             if row:
                 return Position(*row)
             return None
 
-    @staticmethod
-    def list_all() -> List[Position]:
-        query = "SELECT * FROM Position ORDER BY opened_at DESC;"
-        conn = get_conn
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            return [Position(*row) for row in rows]
-        
+    def delete(self, id: int) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM position WHERE id = %s", (id,))
+        self.conn.commit()
 
-    def update(position: Position) -> bool:
-        if position.id is None:
-            raise ValueError("Cannot update position without an ID.")
 
-        query = """
-            UPDATE Position SET
-                ticker = %s,
-                opened_at = %s,
-                closed_at = %s,
-                position_type = %s,
-                open_price = %s,
-                close_price = %s,
-                qty = %s,
-                opened = %s,
-                profit = %s
-            WHERE id = %s;
-        """
-        values = (
-            position.ticker,
-            position.opened_at,
-            position.closed_at,
-            position.position_type,
-            position.open_price,
-            position.close_price,
-            position.qty,
-            position.opened,
-            position.profit,
-            position.id
-        )
-        conn = get_conn
-        with conn.cursor() as cur:
-            cur.execute(query, values)
-            return cur.rowcount > 0  # Returns True if a row was updated
+
+    def get_last(self, ticker: str) -> Optional[Position]:
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, ticker, opened_at, closed_at, position_type,
+                       open_price, close_price, qty, opened, profit
+                FROM position
+                WHERE ticker = %s
+                ORDER BY opened_at DESC
+                LIMIT 1
+            """, (ticker,))
+            row = cur.fetchone()
+            if row:
+                return Position(*row)
+            return None

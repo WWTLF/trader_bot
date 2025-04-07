@@ -1,0 +1,28 @@
+# first stage
+FROM python:3.12 AS builder
+RUN python -m venv /opt/venv
+# Make sure we use the virtualenv:
+ENV PATH="/opt/venv/bin:$PATH"
+
+
+
+COPY requirements1.txt .
+RUN pip install -r requirements1.txt
+
+# second unnamed stage
+FROM python:3.12-slim
+
+
+
+WORKDIR /code
+
+# copy only the dependencies installation from the 1st stage image
+COPY --from=builder /opt/venv /opt/venv
+RUN python -m venv /opt/venv
+
+# Make sure we use the virtualenv:
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY . .
+
+CMD [ "python", "./main.py", "download" ]
