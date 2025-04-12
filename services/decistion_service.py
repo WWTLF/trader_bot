@@ -16,9 +16,12 @@ class DecisionService:
 
 
     def deserialize(self):
-        last_position = self.position_repo.get_last_position(self.ticker)
+        last_position = self.position_repo.get_last(self.ticker)
+        if last_position is None:
+            return
         if last_position.opened:
-            self.postion = last_position
+            self.position = last_position
+            return
         else:
             self.position = None
 
@@ -31,8 +34,9 @@ class DecisionService:
             self.position.profit = self.position.qty * self.position.open_price - self.position.qty * self.position.close_price 
         self.position.opened = False
         self.profit = self.profit + self.position.profit
-        self.position = None
         self.position_repo.update(self.position)
+        self.position = None
+
 
     def decide(self, current_date: date,signal: int, price: float, qty: int, not_trust: float)-> tuple[bool, int]:
 
@@ -76,7 +80,7 @@ class DecisionService:
                         qty=qty, 
                         opened=True,
                         profit=None)
-                    self.position_repo.update(self.position)
+                    self.position_repo.save(self.position)
                     return True, 1
 
             
@@ -94,7 +98,7 @@ class DecisionService:
                     qty=qty, 
                     opened=True,
                     profit=None)
-                self.position_repo.update(self.position)
+                self.position_repo.save(self.position)
                 return False, -1
             else:
                 if self.position.position_type == 'long':

@@ -40,9 +40,18 @@ def preload_date_for_ticker(conn, ticker: str, today: date) -> pd.DataFrame:
         stock_data_repo.Upsert(StockData(ticker, index, row['Open'], row['Close'], row['High'], row['Low'], row['Volume']))  
 
 
-def get_all_stock() -> pd.DataFrame:
-    conn = get_conn()
+def get_all_stock(conn) -> pd.DataFrame:
+    # conn = get_conn()
     stock_data_repo = StockDataRepo(conn)
     df =  stock_data_repo.get_all_stock()
-    conn.close()
+    # conn.close()
+    return df
+
+
+def get_last_month(conn, today, months: int) -> pd.DataFrame:
+    # conn = get_conn()
+    start_date = today - relativedelta(months=months) 
+    stock_data_repo = StockDataRepo(conn)
+    df =  stock_data_repo.get_stock_by_range(start_date, today)
+    # conn.close()
     return df

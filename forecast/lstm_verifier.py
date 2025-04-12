@@ -10,6 +10,7 @@ from repositories.model_config import MLModelConfigRepo
 from sklearn.preprocessing import MinMaxScaler
 from models.ml_model_config import MlModelConfig
 from repositories.extra_feature import ExtraFeatureRepository
+import math
 
 class LSTMVerifier(nn.Module):
     def __init__(self, input_size, hidden_size=64, num_layers=2, dropout_rate=0.3, l1_lambda=0.00001, l2_lambda=0.0002):
@@ -72,15 +73,16 @@ class LSTMVerifierService:
         extra_features = extra_features_repo.get_all_for_ticker_and_date(self.ticker, pred_df.index[0], pred_df.index[-1])
         pred_df['pct_real_close'] = 0.0
         pred_df['pct_pred_close'] = 0.0
-        pred_df['pct_pred_close_real_clopse'] = 0.0
+
 
         for idx, row in pred_df.iterrows():
             if idx in extra_features.index:
-                pred_df.loc[idx, 'pct_real_close'] = extra_features.loc[idx]['pct_real_close']
+                # pred_df.loc[idx, 'pct_real_close'] = extra_features.loc[idx]['pct_real_close']
                 pred_df.loc[idx, 'pct_pred_close'] = extra_features.loc[idx]['pct_pred_close']
-                pred_df.loc[idx, 'pct_pred_close_real_clopse'] = extra_features.loc[idx]['pct_pred_close_real_clopse']
+                # pred_df.loc[idx, 'pct_pred_close_real_close'] = extra_features.loc[idx]['pct_pred_close_real_close']
        
 
+        pred_df['pct_pred_close_real_close'] =  pred_df['pct_pred_close'] - pred_df['pct_real_close']
 
         X = scalerX.transform(pred_df[self.features])
         sequences = []
@@ -103,6 +105,9 @@ class LSTMVerifierService:
 
         non_trust_level = valid_predictions[0].item()
         # print(pred_price)
+
+        if math.isnan(non_trust_level):
+            return 1.0
 
         return non_trust_level
 

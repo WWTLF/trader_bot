@@ -28,7 +28,8 @@ CREATE TABLE Position (
     close_price FLOAT8,
     qty INTEGER NOT NULL,
     opened BOOLEAN NOT NULL,
-    profit FLOAT8
+    profit FLOAT8,
+    UNIQUE (ticker, opened_at)
 );
 
 CREATE TABLE decision (
@@ -47,7 +48,7 @@ CREATE TABLE extra_feature (
     ticker TEXT NOT NULL,
     stock_date DATE NOT NULL,
     feature_name TEXT NOT NULL,
-    feature_value NUMERIC NOT NULL
+    feature_value float NOT NULL
 );
 
 -- Уникальность фичи на дату и тикер

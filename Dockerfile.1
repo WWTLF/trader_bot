@@ -10,15 +10,15 @@ COPY requirements1.txt .
 RUN pip install -r requirements1.txt
 
 # second unnamed stage
-FROM python:3.12-slim
+# FROM python:3.12-slim
 
-
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 WORKDIR /code
 
 # copy only the dependencies installation from the 1st stage image
 COPY --from=builder /opt/venv /opt/venv
-RUN python -m venv /opt/venv
+# RUN python -m venv /opt/venv
 
 # Make sure we use the virtualenv:
 ENV PATH="/opt/venv/bin:$PATH"

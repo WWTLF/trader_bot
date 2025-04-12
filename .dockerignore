@@ -18,6 +18,5 @@ coverage.xml
 .mypy_cache
 .pytest_cache
 .hypothesis
-ml_models
 *.ipynb
 /.venv*

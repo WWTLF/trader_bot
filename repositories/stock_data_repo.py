@@ -34,7 +34,7 @@ class StockDataRepo:
         cur.execute("select ticker, stock_date, open, close, high, low, volume from stock_data;")
         rows = cur.fetchall()
         cur.close()
-        self.conn.close()
+        # self.conn.close()
         stock_df = pd.DataFrame(rows, columns=["ticker", "stock_date", "open", "close", "high", "low", "volume"])
         stock_df['stock_date'] = pd.to_datetime(stock_df['stock_date'])
         # Сглаживаем выбросы
@@ -42,6 +42,27 @@ class StockDataRepo:
         stock_df.set_index(['ticker', 'stock_date'], inplace=True)
         # Filtering by stock_date range (across all tickers)
         stock_df = stock_df.sort_index()
+        return stock_df
+    
+
+    
+    def get_stock_by_range(self, from_date: date, to_date: date) -> pd.DataFrame:
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT ticker, stock_date, open, close, high, low, volume
+                FROM stock_data
+                WHERE stock_date BETWEEN %s AND %s
+                ORDER BY ticker, stock_date;
+            """, (from_date, to_date))
+            rows = cur.fetchall()
+
+        stock_df = pd.DataFrame(rows, columns=["ticker", "stock_date", "open", "close", "high", "low", "volume"])
+        stock_df['stock_date'] = pd.to_datetime(stock_df['stock_date'])
+
+        # Сглаживаем выбросы
+        get_rid_of_outliers(stock_df)
+
+        stock_df.set_index(['ticker', 'stock_date'], inplace=True)
         return stock_df
     
     def get_last_ticker(self, ticker: str) -> StockData:
