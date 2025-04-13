@@ -32,4 +32,5 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     print(args)
     switch_case(args[-1])
+    sys.exit(0)
 
